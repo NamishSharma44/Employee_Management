@@ -1,9 +1,9 @@
+
 name: Build and Deploy to AWS EC2
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -12,255 +12,108 @@ concurrency:
 
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
-  ECR_REPOSITORY_BACKEND: ${{ secrets.ECR_REPOSITORY_BACKEND }}
-  ECR_REPOSITORY_FRONTEND: ${{ secrets.ECR_REPOSITORY_FRONTEND }}
+  BACKEND_REPO: ${{ secrets.ECR_REPOSITORY_BACKEND }}
+  FRONTEND_REPO: ${{ secrets.ECR_REPOSITORY_FRONTEND }}
 
 jobs:
-
-  ################################################################################
-  # BUILD IMAGES
-  ################################################################################
-
-  build-and-push:
-
-    name: Build & Push Docker Images
-
+  build:
     runs-on: ubuntu-latest
-
-    timeout-minutes: 20
-
     outputs:
-      image_tag: ${{ steps.image-tags.outputs.image_tag }}
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+
     steps:
+      - uses: actions/checkout@v4
 
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      ##########################################################################
-      # Configure AWS
-      ##########################################################################
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-      ##########################################################################
-      # Login ECR
-      ##########################################################################
-
-      - name: Login to Amazon ECR
-        id: login-ecr
+      - id: login
         uses: aws-actions/amazon-ecr-login@v2
 
-      ##########################################################################
-      # Generate Tags
-      ##########################################################################
-
-      - name: Generate Docker Tags
-        id: image-tags
-
+      - id: meta
+        shell: bash
         run: |
+          TAG=$(git rev-parse --short HEAD)
+          echo "image_tag=$TAG" >> "$GITHUB_OUTPUT"
 
-          REGISTRY=${{ steps.login-ecr.outputs.registry }}
+      - uses: docker/setup-buildx-action@v3
 
-          SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
-
-          echo "backend_image=$REGISTRY/${{ env.ECR_REPOSITORY_BACKEND }}:$SHORT_SHA" >> $GITHUB_OUTPUT
-          echo "frontend_image=$REGISTRY/${{ env.ECR_REPOSITORY_FRONTEND }}:$SHORT_SHA" >> $GITHUB_OUTPUT
-
-          echo "backend_latest=$REGISTRY/${{ env.ECR_REPOSITORY_BACKEND }}:latest" >> $GITHUB_OUTPUT
-          echo "frontend_latest=$REGISTRY/${{ env.ECR_REPOSITORY_FRONTEND }}:latest" >> $GITHUB_OUTPUT
-
-      ##########################################################################
-      # Buildx
-      ##########################################################################
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      ##########################################################################
-      # Backend
-      ##########################################################################
-
-      - name: Build & Push Backend
+      - name: Build Backend
         uses: docker/build-push-action@v6
-
         with:
           context: ./ems/backend
           push: true
-
           tags: |
-            ${{ steps.image-tags.outputs.backend_image }}
-            ${{ steps.image-tags.outputs.backend_latest }}
-
+            ${{ steps.login.outputs.registry }}/${{ env.BACKEND_REPO }}:${{ steps.meta.outputs.image_tag }}
+            ${{ steps.login.outputs.registry }}/${{ env.BACKEND_REPO }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      ##########################################################################
-      # Frontend
-      ##########################################################################
-
-      - name: Build & Push Frontend
+      - name: Build Frontend
         uses: docker/build-push-action@v6
-
         with:
           context: ./ems/frontend
           push: true
-
           tags: |
-            ${{ steps.image-tags.outputs.frontend_image }}
-            ${{ steps.image-tags.outputs.frontend_latest }}
-
+            ${{ steps.login.outputs.registry }}/${{ env.FRONTEND_REPO }}:${{ steps.meta.outputs.image_tag }}
+            ${{ steps.login.outputs.registry }}/${{ env.FRONTEND_REPO }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  ################################################################################
-  # DEPLOY
-  ################################################################################
-
   deploy:
-
-    name: Deploy to EC2
-
+    needs: build
     runs-on: ubuntu-latest
 
-    timeout-minutes: 20
-
-    needs: build-and-push
-
     steps:
+      - uses: actions/checkout@v4
 
-      ##########################################################################
-      # Checkout
-      ##########################################################################
-
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      ##########################################################################
-      # Copy Compose
-      ##########################################################################
-
-      - name: Copy docker-compose.prod.yml
+      - name: Copy compose
         uses: appleboy/scp-action@v0.1.7
-
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-
           source: docker-compose.prod.yml
           target: /home/${{ secrets.EC2_USER }}/ems
 
-      ##########################################################################
-      # Deploy
-      ##########################################################################
-
-      - name: Deploy Application
-        uses: appleboy/ssh-action@v1.0.3
-
+      - name: Deploy
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-
           script: |
-
             set -e
-  
             mkdir -p ~/ems
             cd ~/ems
 
-            ##############################################################
-            # Get AWS Account ID
-            ##############################################################
-
             ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-            
-            IMAGE_TAG="${{ needs.build-and-push.outputs.image_tag }}"
-            
-            BACKEND_IMAGE="$ACCOUNT_ID.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY_BACKEND }}:$IMAGE_TAG"
-            
-            FRONTEND_IMAGE="$ACCOUNT_ID.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY_FRONTEND }}:$IMAGE_TAG"
-            
-            ##############################################################
-            # Create .env
-            ##############################################################
-            
+            REGION="${{ secrets.AWS_REGION }}"
+            TAG="${{ needs.build.outputs.image_tag }}"
+
+            BACKEND_IMAGE="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/${{ secrets.ECR_REPOSITORY_BACKEND }}:$TAG"
+            FRONTEND_IMAGE="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/${{ secrets.ECR_REPOSITORY_FRONTEND }}:$TAG"
+
             cat > .env <<EOF
             DB_PASSWORD=${{ secrets.DB_PASSWORD }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
             BACKEND_IMAGE=$BACKEND_IMAGE
             FRONTEND_IMAGE=$FRONTEND_IMAGE
             EOF
-            
-            ##############################################################
-            # Login to Amazon ECR
-            ##############################################################
-            
-            aws ecr get-login-password \
-            --region ${{ secrets.AWS_REGION }} \
-            | docker login \
-            --username AWS \
-            --password-stdin \
-            $ACCOUNT_ID.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
-            
-            ##############################################################
-            # Pull Images
-            ##############################################################
-            
-            docker compose \
-            -f docker-compose.prod.yml \
-            --env-file .env \
-            pull
-            
-            ##############################################################
-            # Restart Containers
-            ##############################################################
-            
-            docker compose \
-            -f docker-compose.prod.yml \
-            --env-file .env \
-            up -d --remove-orphans
-            
-            ##############################################################
-            # Show Running Containers
-            ##############################################################
-            
+
+            aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com"
+
+            docker compose -f docker-compose.prod.yml --env-file .env pull
+            docker compose -f docker-compose.prod.yml --env-file .env up -d --remove-orphans
+
             docker compose ps
-            
-            docker ps
-            
-            ##############################################################
-            # Wait
-            ##############################################################
-            
-            echo "Waiting for application..."
-            
-            sleep 40
-            
-            ##############################################################
-            # Backend Health
-            ##############################################################
-            
+
+            sleep 20
+
             curl -f http://localhost:8081/actuator/health
-            
-            ##############################################################
-            # Frontend Health
-            ##############################################################
-            
             curl -f http://localhost
-            
-            ##############################################################
-            # Cleanup
-            ##############################################################
-            
+
             docker image prune -af
-            
-            docker builder prune -af
-            
-            echo "Deployment Successful"
