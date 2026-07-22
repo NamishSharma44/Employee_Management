@@ -12,6 +12,10 @@ services:
     environment:
       MYSQL_DATABASE: ems_db
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_HOST: "%"
+
+    ports:
+      - "3306:3306"
 
     volumes:
       - mysql_data:/var/lib/mysql
@@ -20,7 +24,7 @@ services:
       - ems-network
 
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASSWORD}"]
+      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$DB_PASSWORD" ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -45,7 +49,7 @@ services:
         condition: service_healthy
 
     environment:
-      DB_URL: jdbc:mysql://mysql:3306/ems_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC
+      DB_URL: "jdbc:mysql://mysql:3306/ems_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTCDB_URL: jdbc:mysql://mysql:3306/ems_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
       DB_USERNAME: root
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
@@ -61,12 +65,11 @@ services:
       - ems-network
 
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8081/actuator/health"]
+      test: [ "CMD-SHELL", "wget -q --spider http://localhost:8081/actuator/health || exit 1" ]
       interval: 30s
       timeout: 5s
-      retries: 5
-      start_period: 60s
-
+      retries: 10
+      start_period: 90s
     logging:
       driver: json-file
       options:

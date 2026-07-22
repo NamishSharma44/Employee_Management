@@ -110,6 +110,19 @@ jobs:
 
             docker compose -f docker-compose.prod.yml --env-file .env pull
             docker compose -f docker-compose.prod.yml --env-file .env up -d --remove-orphans
+            sleep 40
+
+            echo "===== ENV ====="
+            cat .env
+            
+            echo "===== BACKEND LOG ====="
+            docker logs ems-backend || true
+            
+            echo "===== MYSQL LOG ====="
+            docker logs ems-mysql || true
+            
+            echo "===== CONTAINERS ====="
+            docker ps -a
 
             docker compose ps
 
@@ -118,4 +131,4 @@ jobs:
             curl -f http://localhost:8081/actuator/health
             curl -f http://localhost
 
-            docker image prune -af
+

@@ -14,6 +14,8 @@ RUN mvn clean package -DskipTests
 # ---------- Runtime ----------
 FROM eclipse-temurin:17-jre-alpine
 
+RUN apk add --no-cache wget
+
 WORKDIR /app
 
 RUN addgroup -S ems \
