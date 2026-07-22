@@ -30,9 +30,7 @@ jobs:
     timeout-minutes: 20
 
     outputs:
-      backend_image: ${{ steps.image-tags.outputs.backend_image }}
-      frontend_image: ${{ steps.image-tags.outputs.frontend_image }}
-
+      image_tag: ${{ steps.image-tags.outputs.image_tag }}
     steps:
 
       - name: Checkout Repository
