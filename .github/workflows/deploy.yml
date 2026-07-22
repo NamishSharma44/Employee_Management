@@ -92,7 +92,7 @@ jobs:
         uses: docker/build-push-action@v6
 
         with:
-          context: ./backend
+          context: ./ems/backend
           push: true
 
           tags: |
@@ -110,7 +110,7 @@ jobs:
         uses: docker/build-push-action@v6
 
         with:
-          context: ./frontend
+          context: ./ems/frontend
           push: true
 
           tags: |
