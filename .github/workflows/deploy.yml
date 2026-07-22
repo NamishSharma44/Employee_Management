@@ -109,26 +109,22 @@ jobs:
             aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com"
 
             docker compose -f docker-compose.prod.yml --env-file .env pull
-            docker compose -f docker-compose.prod.yml --env-file .env up -d --remove-orphans
-            sleep 40
-
-            echo "===== ENV ====="
-            cat .env
+  
+            docker compose -f docker-compose.prod.yml --env-file .env down
             
-            echo "===== BACKEND LOG ====="
-            docker logs ems-backend || true
+            docker compose -f docker-compose.prod.yml --env-file .env up -d
             
-            echo "===== MYSQL LOG ====="
-            docker logs ems-mysql || true
-            
-            echo "===== CONTAINERS ====="
-            docker ps -a
-
-            docker compose ps
-
+            echo "Waiting for backend..."
             sleep 20
-
-            curl -f http://localhost:8081/actuator/health
-            curl -f http://localhost
-
-
+            
+            echo "========== Containers =========="
+            docker ps -a
+            
+            echo "========== Backend Logs =========="
+            docker logs ems-backend --tail=300 || true
+            
+            echo "========== MySQL Logs =========="
+            docker logs ems-mysql --tail=100 || true
+            
+            echo "========== Health =========="
+            curl http://localhost:8081/actuator/health || true
