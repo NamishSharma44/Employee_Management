@@ -72,7 +72,7 @@ public class EmsBackendApplication {
                     "555-0118", finance, "Accountant", 67000.0, LocalDate.of(2022, 8, 15),
                     Gender.FEMALE, karan);
 
-            // ---- Assign department heads now that employees exist ----
+            // ---- Assign department heads now that employees exist ------
             engineering.setHead(aarav);
             design.setHead(ishita);
             marketing.setHead(sneha);
