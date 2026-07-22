@@ -27,9 +27,10 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest request) {
+        System.out.println("Username = [" + request.getUsername() + "]");
+        String username = request.getUsername().trim();
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
-
+                new UsernamePasswordAuthenticationToken(username, request.getPassword()));
         User user = userRepository.findByUsernameIgnoreCase(request.getUsername())
                 .orElseThrow(() -> new IllegalStateException("User not found after authentication"));
 

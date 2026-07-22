@@ -98,12 +98,15 @@ export default function Dashboard() {
           <h3>Salary Distribution</h3>
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
-              <Pie data={salaryData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={95} label={({ name }) => name}>
+              <Pie data={salaryData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={95} label={({ percent }) =>
+                  `${(percent * 100).toFixed(0)}%`
+              }>
                 {salaryData.map((entry, i) => (
                   <Cell key={entry.name} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip />
+              <Legend/>
             </PieChart>
           </ResponsiveContainer>
         </div>

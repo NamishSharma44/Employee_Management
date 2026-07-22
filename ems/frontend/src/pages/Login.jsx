@@ -23,7 +23,7 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      const user = await login(username, password);
+      const user = await login(username.trim(), password);
       showToast(`Welcome back, ${user.fullName || user.username}`);
       navigate('/dashboard');
     } catch (err) {
