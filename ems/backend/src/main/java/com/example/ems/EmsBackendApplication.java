@@ -85,7 +85,7 @@ public class EmsBackendApplication {
             userRepo.save(new User(null, "manager", passwordEncoder.encode("manager123"), Role.MANAGER, true, aarav));
             userRepo.save(new User(null, "employee", passwordEncoder.encode("employee123"), Role.EMPLOYEE, true, rohan));
 
-            // ---- Sample leave requests ----
+            // ---- Sample leave requests -----
             leave(leaveRepo, rohan, LeaveType.SICK, LocalDate.now().minusDays(10), LocalDate.now().minusDays(8),
                     "Fever and flu", LeaveStatus.APPROVED, "manager", LocalDateTime.now().minusDays(9));
             leave(leaveRepo, ananya, LeaveType.CASUAL, LocalDate.now().plusDays(3), LocalDate.now().plusDays(4),
