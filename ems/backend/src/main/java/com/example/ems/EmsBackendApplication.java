@@ -25,7 +25,7 @@ public class EmsBackendApplication {
         return args -> {
             if (employeeRepo.count() > 0) return;
 
-            // ---- Departments (created without heads first) ----
+            // ---- Departments (created without heads first) -----
             Department engineering = departmentRepo.save(new Department(null, "Engineering", "Builds and maintains our products", "Bengaluru", null));
             Department design = departmentRepo.save(new Department(null, "Design", "Product design and user experience", "Bengaluru", null));
             Department marketing = departmentRepo.save(new Department(null, "Marketing", "Brand, growth, and communications", "Mumbai", null));
