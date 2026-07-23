@@ -80,7 +80,7 @@ public class EmsBackendApplication {
             finance.setHead(karan);
             departmentRepo.saveAll(java.util.List.of(engineering, design, marketing, hr, finance));
 
-            // ---- Users (login accounts) ----
+            // ---- Users (login accounts) -----
             userRepo.save(new User(null, "admin", passwordEncoder.encode("admin123"), Role.ADMIN, true, null));
             userRepo.save(new User(null, "manager", passwordEncoder.encode("manager123"), Role.MANAGER, true, aarav));
             userRepo.save(new User(null, "employee", passwordEncoder.encode("employee123"), Role.EMPLOYEE, true, rohan));
